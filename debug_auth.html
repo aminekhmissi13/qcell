@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Cell Auth Debugger</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #1976d2;
+        }
+
+        h2 {
+            font-size: 1.2em;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        #log {
+            white-space: pre-wrap;
+            font-family: monospace;
+            background: #fafafa;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .btn:hover {
+            background: #1565c0;
+        }
+
+        .btn-green {
+            background: #43a047;
+        }
+
+        .btn-green:hover {
+            background: #2e7d32;
+        }
+
+        input {
+            padding: 8px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 200px;
+            margin-right: 10px;
+        }
+
+        .form-row {
+            margin-bottom: 15px;
+        }
+
+        .success {
+            color: #2e7d32;
+            font-weight: bold;
+            background: #e8f5e9;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .error {
+            color: #c62828;
+            font-weight: bold;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .warning {
+            color: #ef6c00;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🕵️ Cell Auth Debugger v2</h1>
+
+    <div class="card">
+        <h2>1. Database Scan</h2>
+        <p>List all users to verify what is actually stored in Firestore.</p>
+        <button class="btn" onclick="scanDatabase()">Scan Users Collection</button>
+    </div>
+
+    <div class="card">
+        <h2>2. Test Login Logic</h2>
+        <p>Type the credentials exactly as you do in the app to diagnose why it fails.</p>
+        <div class="form-row">
+            <input type="text" id="testUser" placeholder="Username" value="qcellfoundation">
+            <input type="text" id="testPass" placeholder="Passcode" value="111555">
+            <button class="btn btn-green" onclick="activeTest()">Test Login</button>
+        </div>
+        <div id="testResult"></div>
+    </div>
+
+    <div class="card">
+        <h2>3. Test Write Permission</h2>
+        <p>Check if you can write to the database (Security Rules Check).</p>
+        <button class="btn btn-green" onclick="testWrite()">Test Write Access</button>
+        <div id="writeResult"></div>
+    </div>
+
+    <div class="card">
+        <h2>Output Log</h2>
+        <div id="log">Click a button above...</div>
+    </div>
+
+    <script type="module">
+        import { db } from './firebase-config.js';
+        import { collection, getDocs, query, where, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        function log(msg, type = 'info') {
+            const logEl = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logEl.innerHTML += `[${time}] ${msg}\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        window.scanDatabase = async () => {
+            const logEl = document.getElementById('log');
+            logEl.textContent = 'Scanning users collection...\n';
+
+            try {
+                const querySnapshot = await getDocs(collection(db, "users"));
+
+                if (querySnapshot.empty) {
+                    log("⚠️ Collection 'users' is INVALID or EMPTY.");
+                    log("Did you create it in the Firebase Console?");
+                    return;
+                }
+
+                log(`✅ Found ${querySnapshot.size} document(s).\n`);
+
+                querySnapshot.forEach(doc => {
+                    const d = doc.data();
+                    log(`📄 Document ID: ${doc.id}`);
+                    log(`   • username: "${d.username}" (${typeof d.username})`);
+                    log(`   • passcode: "${d.passcode}" (${typeof d.passcode})`);
+                    log(`   • role:     "${d.role}"`);
+                    if (typeof d.passcode === 'number') log(`   ❌ WARNING: 'passcode' is a Number. Change it to String in Console.`);
+                    if (d.username !== d.username.toLowerCase()) log(`   ❌ WARNING: 'username' has uppercase. Must be lowercase.`);
+                    log('-----------------------------------');
+                });
+            } catch (err) {
+                log(`❌ Error: ${err.message}`);
+            }
+        };
+
+        window.testWrite = async () => {
+            const resultEl = document.getElementById('writeResult');
+            resultEl.className = '';
+            resultEl.innerHTML = 'Testing write...';
+
+            try {
+                // Try to write a dummy doc
+                const testRef = collection(db, 'debug_writes');
+                await addDoc(testRef, {
+                    timestamp: new Date(),
+                    test: "Checking write permissions"
+                });
+
+                resultEl.className = 'success';
+                resultEl.textContent = '✅ SUCCESS! You can write to the database.';
+                log('Write Test: Success.');
+            } catch (err) {
+                resultEl.className = 'error';
+                resultEl.textContent = '❌ FAILED: ' + err.message;
+                log('Write Test Error: ' + err.message);
+                if (err.message.includes('permission')) {
+                    resultEl.innerHTML += '<br>⚠️ ACTION REQUIRED: Update Firestore Rules to "allow read, write: if true;"';
+                }
+            }
+        };
+
+        window.activeTest = async () => {
+            const username = document.getElementById('testUser').value;
+            const passcode = document.getElementById('testPass').value;
+            const resultEl = document.getElementById('testResult');
+
+            resultEl.className = '';
+            resultEl.innerHTML = 'Testing...';
+            log('\n--- Starting Login Simulation ---');
+
+            try {
+                // 1. Check strict match first (Simulation of actual app)
+                const usersRef = collection(db, 'users');
+                const strictQ = query(
+                    usersRef,
+                    where('username', '==', username.toLowerCase()),
+                    where('passcode', '==', passcode)
+                );
+
+                const strictSnap = await getDocs(strictQ);
+
+                if (!strictSnap.empty) {
+                    resultEl.className = 'success';
+                    resultEl.textContent = '✅ SUCCESS! These credentials work perfectly.';
+                    log('✅ App Logic: Match found!');
+                    return;
+                }
+
+                // 2. Diagnostics: Why did it fail?
+                resultEl.className = 'error';
+                resultEl.textContent = '❌ FAILED. Diagnosing reason...';
+
+                // Check username existence
+                const userQ = query(usersRef, where('username', '==', username.toLowerCase()));
+                const userSnap = await getDocs(userQ);
+
+                if (userSnap.empty) {
+                    resultEl.innerHTML += '<br>Reason: Username not found.';
+                    log('Logic Trace: No user found with username "' + username.toLowerCase() + '"');
+
+                    // Fuzzy check usage
+                    const allDocs = await getDocs(collection(db, 'users'));
+                    allDocs.forEach(d => {
+                        if (d.data().username?.toLowerCase() === username.toLowerCase()) {
+                            log(`   💡 Found close match: "${d.data().username}" (Check whitespace/case)`);
+                        }
+                    });
+
+                } else {
+                    const userData = userSnap.docs[0].data();
+                    resultEl.innerHTML += '<br>Reason: Incorrect Passcode.';
+                    log(`Logic Trace: Username found, but passcode mismatch.`);
+                    log(`   • Input:  "${passcode}" (${typeof passcode})`);
+                    log(`   • Stored: "${userData.passcode}" (${typeof userData.passcode})`);
+
+                    if (String(userData.passcode) === String(passcode) && typeof userData.passcode !== typeof passcode) {
+                        resultEl.innerHTML += '<br>⚠️ TYPE MISMATCH: Database has ' + typeof userData.passcode + ', Input is string.';
+                    }
+                }
+
+            } catch (err) {
+                resultEl.textContent = 'Error: ' + err.message;
+            }
+        };
+    </script>
+</body>
+
+</html>
