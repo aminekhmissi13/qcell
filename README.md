@@ -81,10 +81,6 @@ When clicking an activity card, you see:
 2. View full details including treatment and notes
 3. Click the patient name to view their profile
 
-### Sample Data:
-The app includes sample patients and activities to demonstrate functionality:
-- **Jean Dupont** - 65 years old, with activities today and tomorrow
-- **Marie Martin** - 58 years old, with a follow-up activity today
 
 ## 🎯 Next Steps (Optional Enhancements)
 
@@ -94,3 +90,4 @@ The app includes sample patients and activities to demonstrate functionality:
 - Export calendar to PDF
 - Add reminders/notifications
 - Implement week and day views (buttons are already in place)
+
