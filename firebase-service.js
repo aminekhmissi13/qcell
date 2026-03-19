@@ -535,6 +535,19 @@ export async function updateAssessment(assessmentId, assessmentData) {
 }
 
 /**
+ * Delete a podological assessment
+ */
+export async function deleteAssessment(assessmentId) {
+    try {
+        const assessmentDoc = doc(db, 'assessments', assessmentId);
+        await deleteDoc(assessmentDoc);
+    } catch (error) {
+        console.error('Delete assessment error:', error);
+        throw error;
+    }
+}
+
+/**
  * Get assessments for a specific patient
  */
 export async function getAssessments(patientId) {
@@ -711,4 +724,117 @@ export async function updateWoundAssessment(woundId, assessmentData) {
         console.error('Update wound assessment error:', error);
         throw error;
     }
+}
+
+/**
+ * Delete a wound assessment record
+ */
+export async function deleteWoundAssessment(woundId) {
+    try {
+        const woundDoc = doc(db, 'wound_assessments', woundId);
+        await deleteDoc(woundDoc);
+    } catch (error) {
+        console.error('Delete wound assessment error:', error);
+        throw error;
+    }
+}
+
+// ===========================
+// Image Tracking (Fiche de Suivi d'Image) Functions
+// ===========================
+
+/**
+ * Add a new image tracking sheet for a patient
+ */
+export async function addImageTracking(patientId, trackingData, userId) {
+    try {
+        if (!userId) throw new Error('User ID required');
+
+        const trackingsRef = collection(db, 'image_trackings');
+        const docRef = await addDoc(trackingsRef, {
+            patientId: patientId,
+            ...trackingData,
+            createdAt: serverTimestamp(),
+            createdBy: userId,
+            updatedAt: serverTimestamp()
+        });
+
+        return {
+            id: docRef.id,
+            patientId: patientId,
+            ...trackingData
+        };
+    } catch (error) {
+        console.error('Add image tracking error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Get image tracking sheets for a specific patient
+ */
+export async function getImageTrackings(patientId) {
+    try {
+        const trackingsRef = collection(db, 'image_trackings');
+        const q = query(trackingsRef, where('patientId', '==', patientId));
+        const snapshot = await getDocs(q);
+
+        const docs = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        docs.sort((a, b) => new Date(b.startDate || 0) - new Date(a.startDate || 0));
+        return docs;
+    } catch (error) {
+        console.error('Get image trackings error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Update an image tracking sheet
+ */
+export async function updateImageTracking(trackingId, trackingData) {
+    try {
+        const trackingDoc = doc(db, 'image_trackings', trackingId);
+        await updateDoc(trackingDoc, {
+            ...trackingData,
+            updatedAt: serverTimestamp()
+        });
+    } catch (error) {
+        console.error('Update image tracking error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Delete an image tracking sheet
+ */
+export async function deleteImageTracking(trackingId) {
+    try {
+        const trackingDoc = doc(db, 'image_trackings', trackingId);
+        await deleteDoc(trackingDoc);
+    } catch (error) {
+        console.error('Delete image tracking error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Listen for real-time updates across ALL image trackings (global Suivi view)
+ */
+export function onAllImageTrackingsChanged(callback) {
+    const trackingsRef = collection(db, 'image_trackings');
+    const q = query(trackingsRef, orderBy('createdAt', 'desc'));
+
+    return onSnapshot(q, (snapshot) => {
+        const trackings = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        callback(trackings);
+    }, (error) => {
+        console.error('Image trackings listener error:', error);
+    });
 }

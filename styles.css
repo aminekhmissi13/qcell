@@ -1632,3 +1632,198 @@ body {
     font-size: var(--font-size-base);
     color: var(--color-text-primary);
 }
+
+/* ===========================
+   Suivi d'Image (Image Tracking)
+   =========================== */
+
+/* Header actions */
+.suivi-header-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
+}
+
+.suivi-filter-select {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    font-size: var(--font-size-sm);
+    background: white;
+    cursor: pointer;
+}
+
+/* Grid of tracking cards */
+.suivi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.suivi-card {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+}
+
+.suivi-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--spacing-md);
+}
+
+.suivi-reduction-badge {
+    background: var(--color-success-light);
+    color: var(--color-success);
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Sidebar styling for Suivi */
+.suivi-sidebar {
+    width: 1000px;
+    max-width: 95vw;
+}
+
+.suivi-resizer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 8px;
+    height: 100%;
+    cursor: e-resize;
+    z-index: 100;
+    transition: background 0.2s;
+}
+
+.suivi-resizer:hover, .suivi-resizer:active {
+    background: rgba(59, 130, 246, 0.2);
+    border-left: 2px solid var(--color-primary);
+}
+
+.radio-group-segmented {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
+    background: var(--color-bg-secondary);
+    padding: 8px;
+    border-radius: var(--radius-md);
+}
+
+.radio-group-segmented label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+/* Suivi Table */
+.suivi-table-container {
+    overflow-x: auto;
+    margin-bottom: var(--spacing-md);
+}
+
+.suivi-form-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border: 1px solid var(--color-border);
+}
+
+.suivi-form-table th, .suivi-form-table td {
+    border: 1px solid var(--color-border);
+    padding: 6px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.suivi-form-table th {
+    background: var(--color-bg-secondary);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.suivi-criteria-col {
+    width: 160px;
+    text-align: left !important;
+}
+
+.suivi-criteria-label {
+    text-align: left !important;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.suivi-cell-input,
+.suivi-cell-select,
+.suivi-cell-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 4px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    font-size: 13px;
+    background: #f9fafb;
+}
+
+.suivi-cell-input:focus,
+.suivi-cell-select:focus,
+.suivi-cell-textarea:focus {
+    border-color: var(--color-primary);
+    background: white;
+    outline: none;
+}
+
+.suivi-cell-textarea {
+    resize: vertical;
+}
+
+.suivi-computed-row {
+    background: #f0fdf4; /* faint green */
+}
+
+.suivi-computed-val {
+    font-weight: bold;
+    color: var(--color-success);
+}
+
+.suivi-formula-box {
+    background: var(--color-bg-secondary);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    border-left: 3px solid var(--color-primary);
+}
+
+.suivi-complications-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-sm);
+}
+
+.suivi-complication-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.suivi-complication-autres {
+    grid-column: span 2;
+}
+
+@media (max-width: 650px) {
+    .suivi-sidebar {
+        width: 100%;
+    }
+}

@@ -20,7 +20,8 @@ const appState = {
     currentActivityId: null, // Activity being viewed in details modal
     notificationTimers: [], // Active notification timeouts
     dayPanelWasOpen: false, // Track if day panel was open before opening activity sidebar
-    currentPatientId: null // Patient being viewed in profile
+    currentPatientId: null, // Patient being viewed in profile
+    imageTrackings: [] // Global list of image trackings
 };
 
 // ===========================
@@ -146,7 +147,20 @@ const elements = {
     // Patient Edit elements
     editPatientId: document.getElementById('editPatientId'),
     modalPatientTitle: document.getElementById('modalPatientTitle'),
-    btnSubmitPatient: document.getElementById('btnSubmitPatient')
+    btnSubmitPatient: document.getElementById('btnSubmitPatient'),
+
+    // Suivi d'Image elements
+    suiviGrid: document.getElementById('suiviGrid'),
+    suiviPatientFilter: document.getElementById('suiviPatientFilter'),
+    btnNewSuivi: document.getElementById('btnNewSuivi'),
+    suiviSheetOverlay: document.getElementById('suiviSheetOverlay'),
+    suiviSheetSidebar: document.getElementById('suiviSheetSidebar'),
+    btnCloseSuiviSheet: document.getElementById('btnCloseSuiviSheet'),
+    btnCancelSuiviSheet: document.getElementById('btnCancelSuiviSheet'),
+    formSuiviSheet: document.getElementById('formSuiviSheet'),
+    editSuiviId: document.getElementById('editSuiviId'),
+    suiviSidebarTitle: document.getElementById('suiviSidebarTitle'),
+    suiviResizer: document.getElementById('suiviResizer')
 };
 
 // ===========================
@@ -284,6 +298,12 @@ function initializeDataListeners() {
         if (appState.selectedDayDate) {
             renderDayTimeline(appState.selectedDayDate);
         }
+    });
+
+    // Listen for image trackings changes
+    FirebaseService.onAllImageTrackingsChanged((trackings) => {
+        appState.imageTrackings = trackings;
+        renderSuiviView();
     });
 
     // Listen for users changes (admin only)
@@ -1457,6 +1477,9 @@ function renderPatientsGrid() {
                         <h3>${patient.name}</h3>
                         <p class="patient-meta">${patient.age} ans • ${patient.gender}</p>
                     </div>
+                    <button class="btn-icon-small btn-delete-patient" data-id="${patient.id}" title="Supprimer le patient" style="color: var(--color-danger, #e53935); margin-left: auto; flex-shrink: 0;">
+                        <span class="material-icons" style="font-size: 18px;">delete</span>
+                    </button>
                 </div>
 
                 <div class="patient-card-body">
@@ -1464,9 +1487,23 @@ function renderPatientsGrid() {
                     ${patient.medicalHistory ? `<p><strong>Antécédents:</strong> ${patient.medicalHistory}</p>` : ''}
                 </div>
             `;
-            // Add click listener
-            card.addEventListener('click', () => {
+            // Add click listener to open profile
+            card.addEventListener('click', (e) => {
+                if (e.target.closest('.btn-delete-patient')) return;
                 openPatientDetails(patient.id);
+            });
+            // Delete button listener
+            const btnDelete = card.querySelector('.btn-delete-patient');
+            btnDelete.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (!confirm(`Supprimer le patient "${patient.name}" ? Cette action est irreversible.`)) return;
+                try {
+                    await FirebaseService.deletePatient(patient.id);
+                    showToast(`Patient ${patient.name} supprimé`);
+                } catch (error) {
+                    console.error('Delete patient error:', error);
+                    alert('Erreur lors de la suppression du patient');
+                }
             });
             grid.appendChild(card);
         });
@@ -1861,9 +1898,14 @@ async function renderFootAssessments(patientId) {
                         <h3>Bilan du ${date}</h3>
                         <span class="badge ${riskClass}">${riskLevel}</span>
                     </div>
-                    <button class="btn-icon-small btn-edit-foot" data-id="${ass.id}">
-                        <span class="material-icons" style="font-size: 18px;">edit</span>
-                    </button>
+                    <div style="display: flex; gap: 4px;">
+                        <button class="btn-icon-small btn-edit-foot" data-id="${ass.id}" title="Modifier">
+                            <span class="material-icons" style="font-size: 18px;">edit</span>
+                        </button>
+                        <button class="btn-icon-small btn-delete-foot" data-id="${ass.id}" title="Supprimer" style="color: var(--color-danger, #e53935);">
+                            <span class="material-icons" style="font-size: 18px;">delete</span>
+                        </button>
+                    </div>
                 </div>
                 <div class="detail-grid">
                     <div class="detail-item">
@@ -1901,6 +1943,24 @@ async function renderFootAssessments(patientId) {
             const btnEdit = card.querySelector('.btn-edit-foot');
             btnEdit.addEventListener('click', () => openEditFootAssessmentSidebar(ass));
 
+            // Add delete listener
+            const btnDelete = card.querySelector('.btn-delete-foot');
+            btnDelete.addEventListener('click', async () => {
+                if (!confirm(`Supprimer le bilan podologique du ${date} ?`)) return;
+                try {
+                    await FirebaseService.deleteAssessment(ass.id);
+                    card.remove();
+                    showToast('Bilan supprimé');
+                    // Show empty state if no cards remain
+                    if (list.children.length === 0) {
+                        list.innerHTML = '<div class="empty-state-small"><p>Aucun bilan podologique enregistré</p></div>';
+                    }
+                } catch (error) {
+                    console.error('Delete assessment error:', error);
+                    alert('Erreur lors de la suppression');
+                }
+            });
+
             list.appendChild(card);
         });
 
@@ -1936,9 +1996,14 @@ async function renderWoundAssessments(patientId) {
                         <h3>${wound.location}</h3>
                         <span class="badge" style="background:#f1f3f4; color:#333;">${date}</span>
                     </div>
-                    <button class="btn-icon-small btn-edit-wound" data-id="${wound.id}">
-                        <span class="material-icons" style="font-size: 18px;">edit</span>
-                    </button>
+                    <div style="display: flex; gap: 4px;">
+                        <button class="btn-icon-small btn-edit-wound" data-id="${wound.id}" title="Modifier">
+                            <span class="material-icons" style="font-size: 18px;">edit</span>
+                        </button>
+                        <button class="btn-icon-small btn-delete-wound" data-id="${wound.id}" title="Supprimer" style="color: var(--color-danger, #e53935);">
+                            <span class="material-icons" style="font-size: 18px;">delete</span>
+                        </button>
+                    </div>
                 </div>
                 <div class="detail-grid">
                     <div class="detail-item"><label>Dimensions</label><p>${wound.length || '-'} x ${wound.width || '-'} x ${wound.depth || '-'} cm</p></div>
@@ -1958,6 +2023,24 @@ async function renderWoundAssessments(patientId) {
             // Add edit listener
             const btnEdit = card.querySelector('.btn-edit-wound');
             btnEdit.addEventListener('click', () => openEditWoundAssessmentSidebar(wound));
+
+            // Add delete listener
+            const btnDelete = card.querySelector('.btn-delete-wound');
+            btnDelete.addEventListener('click', async () => {
+                if (!confirm(`Supprimer le suivi de plaie "${wound.location}" du ${date} ?`)) return;
+                try {
+                    await FirebaseService.deleteWoundAssessment(wound.id);
+                    card.remove();
+                    showToast('Suivi de plaie supprimé');
+                    // Show empty state if no cards remain
+                    if (list.children.length === 0) {
+                        list.innerHTML = '<div class="empty-state-small"><p>Aucun suivi de plaie enregistré</p></div>';
+                    }
+                } catch (error) {
+                    console.error('Delete wound assessment error:', error);
+                    alert('Erreur lors de la suppression');
+                }
+            });
 
             list.appendChild(card);
         });
@@ -2279,11 +2362,375 @@ if (elements.formEditActivity) {
 }
 
 // ===========================
+// Suivi d'Image Functions
+// ===========================
+
+let currentSuiviFilter = '';
+
+if (elements.suiviPatientFilter) {
+    elements.suiviPatientFilter.addEventListener('change', (e) => {
+        currentSuiviFilter = e.target.value;
+        renderSuiviView();
+    });
+}
+
+// Open new suivi sheet
+if (elements.btnNewSuivi) {
+    elements.btnNewSuivi.addEventListener('click', () => {
+        openSuiviSheet();
+    });
+}
+
+// Close suivi sheet
+if (elements.btnCloseSuiviSheet) elements.btnCloseSuiviSheet.addEventListener('click', closeSuiviSheet);
+if (elements.btnCancelSuiviSheet) elements.btnCancelSuiviSheet.addEventListener('click', closeSuiviSheet);
+if (elements.suiviSheetOverlay) elements.suiviSheetOverlay.addEventListener('click', closeSuiviSheet);
+
+function closeSuiviSheet() {
+    elements.suiviSheetSidebar.classList.remove('active');
+    elements.suiviSheetOverlay.classList.remove('active');
+}
+
+function updateSuiviPatientDropdown() {
+    const select = document.getElementById('suiviPatient');
+    const prevValue = select.value;
+    select.innerHTML = '<option value="">Sélectionner un patient...</option>';
+    appState.patients.forEach(patient => {
+        const option = document.createElement('option');
+        option.value = patient.id;
+        option.textContent = patient.name;
+        select.appendChild(option);
+    });
+    if (prevValue && appState.patients.find(p => p.id === prevValue)) {
+        select.value = prevValue;
+    }
+}
+
+function updateGlobalSuiviFilterDropdown() {
+    const select = elements.suiviPatientFilter;
+    const prevValue = select.value;
+    select.innerHTML = '<option value="">Tous les patients</option>';
+
+    // Only show patients that have at least one tracking
+    const patientsWithTrackings = [...new Set(appState.imageTrackings.map(t => t.patientId))];
+
+    appState.patients.forEach(patient => {
+        if (patientsWithTrackings.includes(patient.id)) {
+            const option = document.createElement('option');
+            option.value = patient.id;
+            option.textContent = patient.name;
+            select.appendChild(option);
+        }
+    });
+    if (prevValue) select.value = prevValue;
+}
+
+window.openSuiviSheet = openSuiviSheet; // Expose to global scope for onclick handlers
+function openSuiviSheet(trackingId = null) {
+    updateSuiviPatientDropdown();
+    elements.formSuiviSheet.reset();
+
+    // Reset automatic calculation fields
+    document.querySelectorAll('.suivi-computed-val').forEach(el => el.textContent = '—');
+
+    if (trackingId) {
+        elements.suiviSidebarTitle.textContent = 'Modifier la Fiche de Suivi';
+        elements.editSuiviId.value = trackingId;
+        const tracking = appState.imageTrackings.find(t => t.id === trackingId);
+
+        if (tracking) {
+            document.getElementById('suiviPatient').value = tracking.patientId;
+            document.getElementById('suiviCode').value = tracking.patientCode || '';
+            document.getElementById('suiviAge').value = tracking.patientAge || '';
+            const radioSexe = document.querySelector(`input[name="suiviSexe"][value="${tracking.patientGender || 'H'}"]`);
+            if (radioSexe) radioSexe.checked = true;
+            const radioDiabete = document.querySelector(`input[name="suiviDiabete"][value="${tracking.diabetesType || '1'}"]`);
+            if (radioDiabete) radioDiabete.checked = true;
+
+            document.getElementById('suiviStartDate').value = tracking.startDate || '';
+            document.getElementById('suiviPansementType').value = tracking.dressingType || '';
+            document.getElementById('suiviFrequence').value = tracking.dressingFreq || '';
+
+            // Table data
+            const daysArr = ['j0', 'j7', 'j14', 'j21', 'j28'];
+            const fieldsArr = ['surface', 'granulation', 'exsudat', 'infection', 'complications', 'observation'];
+
+            daysArr.forEach(day => {
+                fieldsArr.forEach(field => {
+                    const el = document.getElementById(`suivi_${field}_${day}`);
+                    if (el && tracking.tableData && tracking.tableData[day] && tracking.tableData[day][field] !== undefined) {
+                        el.value = tracking.tableData[day][field];
+                    }
+                });
+            });
+
+            recomputeReductions();
+
+            // Modalites
+            document.getElementById('suiviOu').value = tracking.modalityWhere || '';
+            document.getElementById('suiviParQui').value = tracking.modalityWho || '';
+            document.getElementById('suiviComment').value = tracking.modalityHow || '';
+
+            // Complications
+            if (tracking.possibleComplications) {
+                tracking.possibleComplications.forEach(val => {
+                    const cb = document.querySelector(`input[name="suiviComplication"][value="${val}"]`);
+                    if (cb) cb.checked = true;
+                });
+            }
+            document.getElementById('suiviAutresComplication').value = tracking.otherComplication || '';
+        }
+    } else {
+        elements.suiviSidebarTitle.textContent = 'Nouvelle Fiche de Suivi';
+        elements.editSuiviId.value = '';
+        document.getElementById('suiviStartDate').value = new Date().toISOString().split('T')[0];
+    }
+
+    elements.suiviSheetSidebar.classList.add('active');
+    elements.suiviSheetOverlay.classList.add('active');
+}
+
+// Setup live calculation of reduction
+function recomputeReductions() {
+    const days = ['j0', 'j7', 'j14', 'j21', 'j28'];
+    const j0Input = document.getElementById('suivi_surface_j0');
+    const j0Val = parseFloat(j0Input.value);
+
+    days.forEach(day => {
+        const valSpan = document.getElementById(`suivi_reduction_${day}`);
+        if (!valSpan) return;
+
+        if (day === 'j0') {
+            valSpan.textContent = isNaN(j0Val) ? '—' : '0%';
+            return;
+        }
+
+        const currentInput = document.getElementById(`suivi_surface_${day}`);
+        const currentVal = parseFloat(currentInput.value);
+
+        if (isNaN(j0Val) || isNaN(currentVal) || j0Val === 0) {
+            valSpan.textContent = '—';
+        } else {
+            const reduction = ((j0Val - currentVal) / j0Val) * 100;
+            valSpan.textContent = reduction.toFixed(1) + '%';
+        }
+    });
+}
+
+// Add listeners to surface inputs
+['j0', 'j7', 'j14', 'j21', 'j28'].forEach(day => {
+    const input = document.getElementById(`suivi_surface_${day}`);
+    if (input) {
+        input.addEventListener('input', recomputeReductions);
+    }
+});
+
+// Save suivi
+if (elements.formSuiviSheet) {
+    elements.formSuiviSheet.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const trackingId = elements.editSuiviId.value;
+        const patientId = document.getElementById('suiviPatient').value;
+        const patient = appState.patients.find(p => p.id === patientId);
+
+        if (!patientId || !patient) {
+            alert('Veuillez sélectionner un patient valide.');
+            return;
+        }
+
+        // Collect Table Data
+        const tableData = {};
+        const daysArr = ['j0', 'j7', 'j14', 'j21', 'j28'];
+        const fieldsArr = ['surface', 'granulation', 'exsudat', 'infection', 'complications', 'observation'];
+
+        daysArr.forEach(day => {
+            tableData[day] = {};
+            fieldsArr.forEach(field => {
+                const el = document.getElementById(`suivi_${field}_${day}`);
+                tableData[day][field] = el ? el.value : '';
+            });
+            // compute reduction in data
+            const surfStr = tableData[day].surface;
+            const j0SurfStr = tableData['j0'] ? tableData['j0'].surface : '';
+            if (surfStr && j0SurfStr) {
+                const s = parseFloat(surfStr);
+                const s0 = parseFloat(j0SurfStr);
+                if (!isNaN(s) && !isNaN(s0) && s0 !== 0) {
+                    tableData[day].reduction = ((s0 - s) / s0) * 100;
+                }
+            }
+        });
+
+        // Collect complications
+        const complications = [];
+        document.querySelectorAll('input[name="suiviComplication"]:checked').forEach(cb => {
+            complications.push(cb.value);
+        });
+
+        const trackingData = {
+            patientCode: document.getElementById('suiviCode').value,
+            patientAge: document.getElementById('suiviAge').value,
+            patientGender: document.querySelector('input[name="suiviSexe"]:checked')?.value || 'H',
+            diabetesType: document.querySelector('input[name="suiviDiabete"]:checked')?.value || '1',
+            startDate: document.getElementById('suiviStartDate').value,
+            dressingType: document.getElementById('suiviPansementType').value,
+            dressingFreq: document.getElementById('suiviFrequence').value,
+
+            tableData: tableData,
+
+            modalityWhere: document.getElementById('suiviOu').value,
+            modalityWho: document.getElementById('suiviParQui').value,
+            modalityHow: document.getElementById('suiviComment').value,
+
+            possibleComplications: complications,
+            otherComplication: document.getElementById('suiviAutresComplication').value
+        };
+
+        const userId = appState.currentUser ? appState.currentUser.id : null;
+        if (!userId) {
+            alert("Erreur: Non autorisé.");
+            return;
+        }
+
+        try {
+            if (trackingId) {
+                await FirebaseService.updateImageTracking(trackingId, trackingData);
+                showToast('Fiche de suivi modifiée');
+            } else {
+                await FirebaseService.addImageTracking(patientId, trackingData, userId);
+                showToast('Fiche de suivi créée');
+            }
+            closeSuiviSheet();
+        } catch (error) {
+            alert('Erreur lors de l\'enregistrement de la fiche.');
+        }
+    });
+}
+
+// Render the grid of trackings
+function renderSuiviView() {
+    updateGlobalSuiviFilterDropdown();
+
+    if (!elements.suiviGrid) return;
+
+    let trackingsToDisplay = appState.imageTrackings;
+    if (currentSuiviFilter) {
+        trackingsToDisplay = trackingsToDisplay.filter(t => t.patientId === currentSuiviFilter);
+    }
+
+    if (trackingsToDisplay.length === 0) {
+        elements.suiviGrid.innerHTML = `
+            <div class="empty-state">
+                <p>Aucune fiche de suivi enregistrée${currentSuiviFilter ? ' pour ce patient' : ''}</p>
+            </div>
+        `;
+        return;
+    }
+
+    elements.suiviGrid.innerHTML = '';
+
+    trackingsToDisplay.forEach(tracking => {
+        const patient = appState.patients.find(p => p.id === tracking.patientId);
+        const patientName = patient ? patient.name : 'Patient Inconnu';
+
+        // Find latest valid reduction
+        let reductionStr = '—';
+        if (tracking.tableData) {
+            const revDays = ['j28', 'j21', 'j14', 'j7'];
+            for (let d of revDays) {
+                if (tracking.tableData[d] && tracking.tableData[d].reduction !== undefined) {
+                    reductionStr = tracking.tableData[d].reduction.toFixed(1) + '%';
+                    break;
+                }
+            }
+        }
+
+        const card = document.createElement('div');
+        card.className = 'suivi-card';
+        card.innerHTML = `
+            <div class="suivi-card-header">
+                <div>
+                    <h3 style="margin:0;font-size:16px;color:var(--color-text-primary);">${patientName}</h3>
+                    <div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px;">
+                        Date: ${formatDate(tracking.startDate)}
+                    </div>
+                </div>
+                <div class="suivi-reduction-badge">Réduc: ${reductionStr}</div>
+            </div>
+            <div class="suivi-card-body" style="font-size:13px;color:var(--color-text-secondary);line-height:1.5;margin-bottom:12px;">
+                Code: ${tracking.patientCode || 'N/A'} <br>
+                Pansement: ${tracking.dressingType || 'Non spécifié'}
+            </div>
+            <div class="suivi-card-actions" style="display:flex;gap:8px;border-top:1px solid var(--color-border);padding-top:12px;">
+                 <button class="btn-secondary" style="flex:1" onclick="openSuiviSheet('${tracking.id}')">
+                     <span class="material-icons" style="font-size:16px;">edit</span> Modifier
+                 </button>
+                 <button class="btn-danger" style="flex:0 0 auto;padding:8px;" onclick="deleteSuiviAction('${tracking.id}')">
+                     <span class="material-icons" style="font-size:16px;">delete</span>
+                 </button>
+            </div>
+        `;
+        elements.suiviGrid.appendChild(card);
+    });
+}
+
+window.deleteSuiviAction = async function (trackingId) {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer cette fiche de suivi d'image ?")) return;
+    try {
+        await FirebaseService.deleteImageTracking(trackingId);
+        showToast('Fiche supprimée');
+    } catch (err) {
+        alert('Erreur lors de la suppression');
+    }
+};
+
+// ===========================
+// Resizer Logic
+// ===========================
+function initSuiviResizer() {
+    const resizer = elements.suiviResizer;
+    const sidebar = elements.suiviSheetSidebar;
+
+    if (!resizer || !sidebar) return;
+
+    let isResizing = false;
+
+    resizer.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        document.body.style.cursor = 'e-resize';
+        document.body.style.userSelect = 'none';
+        sidebar.style.transition = 'none'; // Disable transition during drag
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+
+        const sidebarWidth = window.innerWidth - e.clientX;
+
+        // Constraints: min 400px, max 95% of window
+        if (sidebarWidth > 400 && sidebarWidth < window.innerWidth * 0.95) {
+            sidebar.style.width = `${sidebarWidth}px`;
+        }
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            document.body.style.cursor = 'default';
+            document.body.style.userSelect = 'auto';
+            sidebar.style.transition = ''; // Restore transition
+        }
+    });
+}
+
+// ===========================
 // Initialize App
 // ===========================
 function initApp() {
     renderCalendar();
     updateStats();
+    initSuiviResizer();
 
     // Request notification permission
     requestNotificationPermission();

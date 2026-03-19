@@ -42,6 +42,10 @@
                 <span class="nav-icon material-icons">people</span>
                 <span class="nav-label">Patients</span>
             </li>
+            <li class="nav-item" data-view="suivi">
+                <span class="nav-icon material-icons">assignment_turned_in</span>
+                <span class="nav-label">Suivi</span>
+            </li>
             <li class="nav-item" data-view="admin" id="navAdmin" style="display: none;">
                 <span class="nav-icon material-icons">admin_panel_settings</span>
                 <span class="nav-label">Administration</span>
@@ -222,6 +226,31 @@
                 <div class="empty-state">
                     <p>Aucun patient enregistré</p>
                     <button class="btn-primary" id="btnNewPatientAlt">+ Ajouter un patient</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Suivi View -->
+        <section class="view" id="view-suivi">
+            <header class="view-header">
+                <div>
+                    <h2 class="view-title">Suivi des Images</h2>
+                    <p class="view-subtitle">Fiches de suivi d'image par patient</p>
+                </div>
+                <div class="suivi-header-actions">
+                    <select id="suiviPatientFilter" class="suivi-filter-select">
+                        <option value="">Tous les patients</option>
+                    </select>
+                    <button class="btn-primary" id="btnNewSuivi">
+                        <span class="material-icons" style="font-size:18px;margin-right:4px;">add</span>
+                        Nouvelle fiche
+                    </button>
+                </div>
+            </header>
+
+            <div class="suivi-grid" id="suiviGrid">
+                <div class="empty-state">
+                    <p>Aucune fiche de suivi enregistrée</p>
                 </div>
             </div>
         </section>
@@ -1010,6 +1039,188 @@
             <div class="activity-sidebar-actions">
                 <button type="button" class="btn-secondary" id="btnCancelNewWoundAssessment">Annuler</button>
                 <button type="submit" class="btn-primary">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Sidebar: Suivi d'Image -->
+    <div class="activity-sidebar-overlay" id="suiviSheetOverlay"></div>
+    <div class="activity-sidebar suivi-sidebar" id="suiviSheetSidebar">
+        <!-- Resize handle -->
+        <div class="suivi-resizer" id="suiviResizer"></div>
+        <form id="formSuiviSheet" style="display:flex;flex-direction:column;height:100%;">
+            <input type="hidden" id="editSuiviId">
+            <input type="hidden" id="editSuiviPatientId">
+            <div class="activity-sidebar-header">
+                <div class="activity-sidebar-title-row">
+                    <button type="button" class="activity-sidebar-close" id="btnCloseSuiviSheet">
+                        <span class="material-icons">close</span>
+                    </button>
+                    <h2 id="suiviSidebarTitle">Nouvelle Fiche de Suivi</h2>
+                </div>
+            </div>
+            <div class="activity-sidebar-body">
+
+                <!-- Identification du patient -->
+                <div class="form-section-title">Identification du patient</div>
+                <div class="form-group">
+                    <label for="suiviPatient">Patient *</label>
+                    <select id="suiviPatient" required>
+                        <option value="">Sélectionner un patient...</option>
+                    </select>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="suiviCode">Code patient</label>
+                        <input type="text" id="suiviCode" placeholder="ex: P-001">
+                    </div>
+                    <div class="form-group">
+                        <label for="suiviAge">Âge (ans)</label>
+                        <input type="number" id="suiviAge" min="0" max="120">
+                    </div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Sexe</label>
+                        <div class="radio-group-segmented">
+                            <label><input type="radio" name="suiviSexe" value="H" checked> H</label>
+                            <label><input type="radio" name="suiviSexe" value="F"> F</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Type de diabète</label>
+                        <div class="radio-group-segmented">
+                            <label><input type="radio" name="suiviDiabete" value="1" checked> 1</label>
+                            <label><input type="radio" name="suiviDiabete" value="2"> 2</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="suiviStartDate">Date de début du suivi *</label>
+                    <input type="date" id="suiviStartDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="suiviPansementType">Type de pansement utilisé</label>
+                    <input type="text" id="suiviPansementType" placeholder="ex: Hydrocolloïde, Alginate...">
+                </div>
+                <div class="form-group">
+                    <label for="suiviFrequence">Fréquence de changement de pansement</label>
+                    <input type="text" id="suiviFrequence" placeholder="ex: Tous les 2 jours">
+                </div>
+
+                <!-- Tableau de suivi -->
+                <div class="form-section-title" style="margin-top:20px;">Tableau de suivi d'image</div>
+                <div class="suivi-table-container">
+                    <table class="suivi-form-table">
+                        <thead>
+                            <tr>
+                                <th class="suivi-criteria-col">Critères d'évaluation</th>
+                                <th>J0</th>
+                                <th>J7</th>
+                                <th>J14</th>
+                                <th>J21</th>
+                                <th>J28</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="suivi-criteria-label">Surface de la plaie (cm²)</td>
+                                <td><input type="number" class="suivi-cell-input" data-day="j0" data-field="surface" step="0.1" min="0" id="suivi_surface_j0"></td>
+                                <td><input type="number" class="suivi-cell-input" data-day="j7" data-field="surface" step="0.1" min="0" id="suivi_surface_j7"></td>
+                                <td><input type="number" class="suivi-cell-input" data-day="j14" data-field="surface" step="0.1" min="0" id="suivi_surface_j14"></td>
+                                <td><input type="number" class="suivi-cell-input" data-day="j21" data-field="surface" step="0.1" min="0" id="suivi_surface_j21"></td>
+                                <td><input type="number" class="suivi-cell-input" data-day="j28" data-field="surface" step="0.1" min="0" id="suivi_surface_j28"></td>
+                            </tr>
+                            <tr class="suivi-computed-row">
+                                <td class="suivi-criteria-label">Réduction de la surface (%)</td>
+                                <td><span class="suivi-computed-val" id="suivi_reduction_j0">—</span></td>
+                                <td><span class="suivi-computed-val" id="suivi_reduction_j7">—</span></td>
+                                <td><span class="suivi-computed-val" id="suivi_reduction_j14">—</span></td>
+                                <td><span class="suivi-computed-val" id="suivi_reduction_j21">—</span></td>
+                                <td><span class="suivi-computed-val" id="suivi_reduction_j28">—</span></td>
+                            </tr>
+                            <tr>
+                                <td class="suivi-criteria-label">Tissu de granulation (%)</td>
+                                <td><input type="number" class="suivi-cell-input" data-day="j0" data-field="granulation" min="0" max="100" id="suivi_granulation_j0"></td>
+                                <td><input type="number" class="suivi-cell-input" data-day="j7" data-field="granulation" min="0" max="100" id="suivi_granulation_j7"></td>
+                                <td><input type="number" class="suivi-cell-input" data-day="j14" data-field="granulation" min="0" max="100" id="suivi_granulation_j14"></td>
+                                <td><input type="number" class="suivi-cell-input" data-day="j21" data-field="granulation" min="0" max="100" id="suivi_granulation_j21"></td>
+                                <td><input type="number" class="suivi-cell-input" data-day="j28" data-field="granulation" min="0" max="100" id="suivi_granulation_j28"></td>
+                            </tr>
+                            <tr>
+                                <td class="suivi-criteria-label">Exsudat</td>
+                                <td><select class="suivi-cell-select" data-day="j0" data-field="exsudat" id="suivi_exsudat_j0"><option value="">—</option><option>Non</option><option>Oui</option></select></td>
+                                <td><select class="suivi-cell-select" data-day="j7" data-field="exsudat" id="suivi_exsudat_j7"><option value="">—</option><option>Non</option><option>Oui</option></select></td>
+                                <td><select class="suivi-cell-select" data-day="j14" data-field="exsudat" id="suivi_exsudat_j14"><option value="">—</option><option>Non</option><option>Oui</option></select></td>
+                                <td><select class="suivi-cell-select" data-day="j21" data-field="exsudat" id="suivi_exsudat_j21"><option value="">—</option><option>Non</option><option>Oui</option></select></td>
+                                <td><select class="suivi-cell-select" data-day="j28" data-field="exsudat" id="suivi_exsudat_j28"><option value="">—</option><option>Non</option><option>Oui</option></select></td>
+                            </tr>
+                            <tr>
+                                <td class="suivi-criteria-label">Infection</td>
+                                <td><select class="suivi-cell-select" data-day="j0" data-field="infection" id="suivi_infection_j0"><option value="">—</option><option>Non</option><option>Oui</option></select></td>
+                                <td><select class="suivi-cell-select" data-day="j7" data-field="infection" id="suivi_infection_j7"><option value="">—</option><option>Non</option><option>Oui</option></select></td>
+                                <td><select class="suivi-cell-select" data-day="j14" data-field="infection" id="suivi_infection_j14"><option value="">—</option><option>Non</option><option>Oui</option></select></td>
+                                <td><select class="suivi-cell-select" data-day="j21" data-field="infection" id="suivi_infection_j21"><option value="">—</option><option>Non</option><option>Oui</option></select></td>
+                                <td><select class="suivi-cell-select" data-day="j28" data-field="infection" id="suivi_infection_j28"><option value="">—</option><option>Non</option><option>Oui</option></select></td>
+                            </tr>
+                            <tr>
+                                <td class="suivi-criteria-label">Complications</td>
+                                <td><select class="suivi-cell-select" data-day="j0" data-field="complications" id="suivi_complications_j0"><option value="">—</option><option>Non</option><option>Oui</option></select></td>
+                                <td><select class="suivi-cell-select" data-day="j7" data-field="complications" id="suivi_complications_j7"><option value="">—</option><option>Non</option><option>Oui</option></select></td>
+                                <td><select class="suivi-cell-select" data-day="j14" data-field="complications" id="suivi_complications_j14"><option value="">—</option><option>Non</option><option>Oui</option></select></td>
+                                <td><select class="suivi-cell-select" data-day="j21" data-field="complications" id="suivi_complications_j21"><option value="">—</option><option>Non</option><option>Oui</option></select></td>
+                                <td><select class="suivi-cell-select" data-day="j28" data-field="complications" id="suivi_complications_j28"><option value="">—</option><option>Non</option><option>Oui</option></select></td>
+                            </tr>
+                            <tr>
+                                <td class="suivi-criteria-label">Observation / Remarques</td>
+                                <td><textarea class="suivi-cell-textarea" data-day="j0" data-field="observation" id="suivi_observation_j0" rows="2"></textarea></td>
+                                <td><textarea class="suivi-cell-textarea" data-day="j7" data-field="observation" id="suivi_observation_j7" rows="2"></textarea></td>
+                                <td><textarea class="suivi-cell-textarea" data-day="j14" data-field="observation" id="suivi_observation_j14" rows="2"></textarea></td>
+                                <td><textarea class="suivi-cell-textarea" data-day="j21" data-field="observation" id="suivi_observation_j21" rows="2"></textarea></td>
+                                <td><textarea class="suivi-cell-textarea" data-day="j28" data-field="observation" id="suivi_observation_j28" rows="2"></textarea></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Réduction auto info -->
+                <div class="suivi-formula-box">
+                    <strong>Calcul de la réduction de surface :</strong><br>
+                    Taux (%) = (Surface J0 − Surface Jx) ÷ Surface J0 × 100
+                </div>
+
+                <!-- Modalités de suivi -->
+                <div class="form-section-title" style="margin-top:20px;">Les modalités de suivi</div>
+                <div class="form-group">
+                    <label for="suiviOu">Où ?</label>
+                    <input type="text" id="suiviOu" placeholder="ex: Domicile, Clinique, Hôpital...">
+                </div>
+                <div class="form-group">
+                    <label for="suiviParQui">Par qui ?</label>
+                    <input type="text" id="suiviParQui" placeholder="ex: Infirmière, Médecin...">
+                </div>
+                <div class="form-group">
+                    <label for="suiviComment">Comment ?</label>
+                    <textarea id="suiviComment" rows="2" placeholder="Protocole de soin appliqué..."></textarea>
+                </div>
+
+                <!-- Complications possibles -->
+                <div class="form-section-title" style="margin-top:16px;">Complications possibles</div>
+                <div class="suivi-complications-grid">
+                    <label class="suivi-complication-check"><input type="checkbox" name="suiviComplication" value="extension"> Extension de la plaie</label>
+                    <label class="suivi-complication-check"><input type="checkbox" name="suiviComplication" value="osteite"> Ostéite</label>
+                    <label class="suivi-complication-check"><input type="checkbox" name="suiviComplication" value="necrose"> Nécrose</label>
+                    <label class="suivi-complication-check"><input type="checkbox" name="suiviComplication" value="amputation"> Amputation mineure</label>
+                    <label class="suivi-complication-check suivi-complication-autres">
+                        <input type="checkbox" name="suiviComplication" value="autres"> Autres :
+                        <input type="text" id="suiviAutresComplication" placeholder="Préciser..." style="margin-left:6px;flex:1;">
+                    </label>
+                </div>
+
+            </div>
+            <div class="activity-sidebar-actions">
+                <button type="button" class="btn-secondary" id="btnCancelSuiviSheet">Annuler</button>
+                <button type="submit" class="btn-primary">Enregistrer la fiche</button>
             </div>
         </form>
     </div>
